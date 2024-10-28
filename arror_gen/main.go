@@ -121,7 +121,7 @@ func (s *server) generateData(w io.Writer, start int, count int, opts ...ipc.Opt
 		row, ok := f.(*array.Float64Builder)
 
 		if !ok {
-			return 0, fmt.Errorf("can't cast field %v to Decimal128Builder", f)
+			return 0, fmt.Errorf("can't cast field %v to Float64Builder", f)
 		}
 
 		for i := 0; i < count; i++ {
