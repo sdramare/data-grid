@@ -40,33 +40,28 @@ func main() {
 		log.Fatalf("failed generate data: %v", err)
 	} */
 
-	http.HandleFunc("/table", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Content-Type", "application/octet-stream")
-		w.Header().Add("Content-Disposition", "filename=table.arrow")
-		w.Header().Add("Access-Control-Allow-Origin", "*")
-		err := server.GenerateTable(w)
-		if err != nil {
-			slog.Error("fail on /table", slog.Any("error", err))
-			w.Write([]byte(err.Error()))
-		}
-	})
-
-	http.HandleFunc("/update", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Content-Type", "application/octet-stream")
-		w.Header().Add("Content-Disposition", "filename=update.arrow")
-		w.Header().Add("Access-Control-Allow-Origin", "*")
-		err := server.GenerateUpdate(w)
-		if err != nil {
-			slog.Error("fail on /update", slog.Any("error", err))
-			w.Write([]byte(err.Error()))
-		}
-
-		log.Println("add new row")
-	})
+	addFileRoute("table", server.GenerateTable)
+	addFileRoute("update", server.GenerateUpdate)
 
 	log.Println("start on 8081")
 
 	http.ListenAndServe("localhost:8081", nil)
+}
+
+func addFileRoute(name string, handler func(io.Writer) error) {
+	fileName := fmt.Sprintf("filename=%s.arrow", name)
+	http.HandleFunc(fmt.Sprintf("/%s", name), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Content-Type", "application/octet-stream")
+		w.Header().Add("Content-Disposition", fileName)
+		w.Header().Add("Access-Control-Allow-Origin", "*")
+		err := handler(w)
+		if err != nil {
+			slog.Error(fmt.Sprintf("fail on /%s", name), slog.Any("error", err))
+			w.Write([]byte(err.Error()))
+		}
+
+		log.Println("call /", name)
+	})
 }
 
 type server struct {
@@ -139,11 +134,7 @@ func (s *server) generateData(w io.Writer, start int, count int, opts ...ipc.Opt
 	rec1 := b.NewRecord()
 	defer rec1.Release()
 
-	if opts == nil {
-		opts = []ipc.Option{ipc.WithAllocator(pool)}
-	} else {
-		opts = append(opts, ipc.WithAllocator(pool))
-	}
+	opts = append(opts, ipc.WithAllocator(pool))
 
 	ww := ipc.NewWriter(w, opts...)
 	defer ww.Close()
